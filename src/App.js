@@ -33,8 +33,25 @@ class App extends Component {
       imageurl:'',
       box: {},
       route: 'signin',
-      isSignIn: false
+      isSignIn: false,
+      user:{
+        id: '',
+        name: '',
+        email: '',
+        entries: 0,
+        joined: ''
+      }
     }
+  }
+
+  loadUser = (data) =>{
+    this.setState({user:{
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      entries: data.entries,
+      joined: data.joined
+    }})
   }
 
   calculatefacelocation = (data) =>{
@@ -63,9 +80,26 @@ class App extends Component {
     app.models.predict(
       Clarifai.FACE_DETECT_MODEL,
       this.state.input
-    ).then(response => this.displayFacebox(this.calculatefacelocation(response)))
-    .catch( err => console.log('error!', err))
-  }
+    ).then(response => {
+      if (response) {
+        fetch('http://localhost:3000/image', {
+          method: 'put',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            id: this.state.user.id
+          })
+        })
+          .then(response => response.json())
+          .then (count => {
+            this.setState(Object.assign(this.state.user, { entries: count}))
+          })
+
+      }
+      this.displayFacebox(this.calculatefacelocation(response))
+    })
+    .catch(err => console.log(err));
+}
+
 
   onRouteChange = (routein) => {
     if (routein === 'signout'){
@@ -81,13 +115,16 @@ class App extends Component {
     return (
       <div className="App">
         <Particles className='particles'
-              params={particlesOptions}
+          params={particlesOptions}
         />
         <Navigation isSignIn={isSignIn} onRouteChange = {this.onRouteChange} />
         {route === 'home' 
           ? <div> 
               <Logo />
-              <Rank />
+              <Rank 
+                name={this.state.user.name}
+                entries={this.state.user.entries}
+              />
               <ImageLinkForm 
                 onInputChange = {this.onInputChange} 
                 onButtonSubmit={this.onButtonSubmit}
@@ -97,10 +134,10 @@ class App extends Component {
           : (
             route === 'signin' 
             ? <div>
-                <Signin onRouteChange = {this.onRouteChange}/>
+                <Signin loadUser={this.loadUser} onRouteChange = {this.onRouteChange}/>
                 <Logo />
               </div>
-            : <Register onRouteChange = {this.onRouteChange} />
+            : <Register loadUser={this.loadUser} onRouteChange = {this.onRouteChange} />
             )
         }      
       </div>
